@@ -1,6 +1,4 @@
-#   TODO:   Fix get_stratified_sample() replace broken x() with actual working logic
 #   TODO:   Add verification comparison between ratings
-#   TODO:   implement sample_with_keywords() add to lists, and implement logic
 #   TODO:   Clean up the logging print statements
 
 
@@ -177,10 +175,15 @@ class Sampler:
         
         # Drop helper columns
         keyword_sample = keyword_sample.drop(columns=['likely_bug', 'likely_feature'])
+
+        
         
         print(f"\n Total samples: {len(keyword_sample):,}")
         return keyword_sample
 
+    def sample_tiny_size(self):
+        mini_sample = self.data.sample(200)     #   reading some samples manually
+        return mini_sample
 
          
     
@@ -211,7 +214,7 @@ def main():
     print("2. original_distribution_sample() stratified by the original data distribution")
     print("3. get_keyword_boosted_sample() stratified using original distribution but also using a keyword dictionary")
     
-    choice = input("\nEnter choice (1-3): ").strip()
+    choice = input("\nEnter choice (1-4): ").strip()
     
     if choice == '1':
         sample = sampler.get_stratified_sample()
@@ -224,6 +227,10 @@ def main():
     elif choice == '3':
         sample = sampler.sample_with_keywords()
         sampler.save_sample(sample, "multitag/data/uber_reviews_sampled.csv")
+
+    elif choice == '4':
+        sample = sampler.sample_tiny_size()
+        sampler.save_sample(sample,"multitag/data/uber_review_temp.csv")
         
 
 
