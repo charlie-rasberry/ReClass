@@ -61,14 +61,22 @@ class Sampler:
     Doesn't factor that the distribution changed greatly after preprocessing
 
     """
-    def get_stratified_sample(self) -> pd.Series:
-        stratified_sample = self.data.groupby(self.stratify_column).apply(self.x)
-        return stratified_sample
+    def get_stratified_sample(self) -> pd.DataFrame:
+           stratified_sample = (
+            self.data
+            .reset_index(drop=True)
+            .apply(self.x)
+            .sample(n=self.target_samples, random_state=42)
+            )
+           return stratified_sample
+        
     
 
     # x(self): helper function for get_proportional_sample and get_stratified_sample =FIX=
-    def x(self, ):    
-        return lambda x: x.sample(n=int(len(x) / self.total * self.target_samples))
+    def x(self, x):    
+        n = int(len(x) / self.total * self.target_samples)
+        n = max(n,1)
+        return x.sample(n=n, random_state=42)
     """
     get_proportional_sample()
 
@@ -100,7 +108,7 @@ class Sampler:
             if len(rating_data) < num_samples:
                 print("Missing samples available for rating")
                 num_samples = len(rating_data)
-            sample = rating_data.sample(n = num_samples,random_state=33)
+            sample = rating_data.sample(n = num_samples,random_state=42)
             samples.append(sample)
         original_sample = pd.concat(samples, ignore_index=True)
         return original_sample
@@ -119,20 +127,62 @@ class Sampler:
     
     """
 
-    def sample_with_keywords():
+    def sample_with_keywords(self):
         #TODO add keywords for feature classification
         print(f"\n{"="*50}")
         print("Keyword influenced / rating stratified set")
         print(f"\n{"="*50}")
 
-        bug_keywords = ["crash","crashes", "freeze", "freezes", "error",
-                        "stops", "doesnt work", "doesn't work","loading",
-                        "blank", "stuck", "load", "loads", "broken", "breaks",
-                        "glitch", "glitches", "issue", "could you", "fix",
-                        "failed"]
+        bug_keywords = ["crash","freeze", "error",
+                        "stop", "doesnt work", "doesn't work","loading",
+                        "blank", "stuck", "load", "broken", "break",
+                        "glitch", "issue", "fix", "needs","please repair",
+                        "failed", "responding"
+                        ]
+        feature_keywords = ["need","should","add","wish","would","benefit",
+                            "please add","should have", "want", "missing",
+                            "require", "suggestion", "request", "could you",
+                            "include", "hope", "why not", "greatly", "option",
+                            "new","system"
+                            ]
+        self.data['likely_bug'] = self.data['review'].apply(
+            lambda x:any(keyword in str(x).lower() for keyword in bug_keywords)
+        )
+        self.data['likely_feature'] = self.data['review'].apply(
+            lambda x: any (keyword in str(x).lower() for keyword in feature_keywords)
+        )
+        print(f"Reviews with bug_keywords = {self.data['likely_bug'].sum():,}")
+        print(f"Reviews with feature_keywords = {self.data['likely_feature'].sum():,}")
+
+        print(f"Sampling 2000 reviews balanced (400 per rating)...")
+        base_sample = self.data.groupby(self.stratify_column).apply(
+            lambda x: x.sample(n=min(400, len(x)), random_state=42),
+            include_groups = False
+        ).reset_index(drop=True)
+
+        print(f"Sampling 1500 possible bug reports...")
+        bugs = self.data[self.data['likely_bug'] & ~self.data.index.isin(base_sample.index)]
+        bug_sample = bugs.sample(n=min(1500, len(bugs)), random_state=42)
+        
+        print(f"Sampling 1500 possible feature requests...")
+        features = self.data[
+            self.data['likely_feature'] & 
+            ~self.data.index.isin(base_sample.index) &
+            ~self.data.index.isin(bug_sample.index)
+        ]
+        feature_sample = features.sample(n=min(1500, len(features)), random_state=42)
+
+        # Combine all samples
+        keyword_sample = pd.concat([base_sample, bug_sample, feature_sample], ignore_index=True)
+        
+        # Drop helper columns
+        keyword_sample = keyword_sample.drop(columns=['likely_bug', 'likely_feature'])
+        
+        print(f"\n Total samples: {len(keyword_sample):,}")
+        return keyword_sample
 
 
-        return 
+         
     
     def save_sample(self, sample_df,output_path):
         """Save sample and display statistics"""
@@ -172,7 +222,7 @@ def main():
         sampler.save_sample(sample, "multitag/data/uber_reviews_sampled.csv")
         
     elif choice == '3':
-        sample = sampler.get_keyword_boosted_sample()
+        sample = sampler.sample_with_keywords()
         sampler.save_sample(sample, "multitag/data/uber_reviews_sampled.csv")
         
 

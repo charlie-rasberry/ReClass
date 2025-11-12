@@ -166,8 +166,8 @@ def preprocess_uber_reviews(input_path, output_path):
     return df_clean
 
 if __name__ == "__main__":
-    input_file = "data/uber_reviews.csv"
-    output_file = "data/uber_reviews_cleaned.csv"
+    input_file = "multitag/data/uber_reviews.csv"
+    output_file = "multitag/data/uber_reviews_cleaned.csv"
     
     df_clean = preprocess_uber_reviews(input_file, output_file)
     print("\nPreprocessing complete!")
