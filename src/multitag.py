@@ -2,6 +2,8 @@
 # This app enables manual annotation of reviews in the Uber dataset, for training with 
 # to achieve review classifications with multi task deep learning
 
+# In another time I would have had much more tasks / classifications so mtl can perform better (that would mean better labelling), 
+#at least that is my prediction of why this may not be as good as I wanted
 import tkinter as tk
 from tkinter import ttk
 import pandas as pd
@@ -47,8 +49,8 @@ class MultiTag:
         self.color_complete = "#00AA00"
 
         # Paths
-        tagged_path = "multitag/data/uber_reviews_tagged.csv"
-        sampled_path = "multitag/data/uber_reviews_sampled.csv"
+        tagged_path = "data/uber_reviews_tagged.csv"
+        sampled_path = "data/uber_reviews_sampled.csv"
         # self.load_review_data("data/uber_reviews_sampled.csv")
         # self.load_review_data("data/uber_reviews_tagged.csv")
         if not os.path.exists(tagged_path):
@@ -256,7 +258,7 @@ class MultiTag:
 
     def submit_tag(self):
         self.review_data.at[self.current_review_index, "tagged"] = 1
-        self.save_tags("multitag/data/uber_reviews_tagged.csv")
+        self.save_tags("data/uber_reviews_tagged.csv")
         self.display_next_review()
 
     def try_submit(self, event):
@@ -291,9 +293,9 @@ class MultiTag:
         print(f"SESSION COMPLETE")
         print(f"{'='*50}")
         print(f"Total tagged: {tagged_count} / {len(self.review_data)}")
-        print(f"Saved to: multitag/data/uber_reviews_tagged.csv")
+        print(f"Saved to: data/uber_reviews_tagged.csv")
         print(f"Bye    (ʘ‿ʘ)╯")
-        self.save_tags("multitag/data/uber_reviews_tagged.csv")
+        self.save_tags("data/uber_reviews_tagged.csv")
         self.root.destroy()
 
     def get_current_review_index(self):

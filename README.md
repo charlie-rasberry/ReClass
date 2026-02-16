@@ -25,25 +25,27 @@ RECLASS is a multi-task learning system which uses a shared BERT encoder with ta
 ## Repository Structure
 
 ```
+## Repository Structure
+```
 6013/
-README.md
-requirements.txt
-    multitag/
-        data/
-            uber_reviews.csv           # Raw dataset
-            uber_reviews_cleaned.csv   # Preprocessed reviews
-            uber_reviews_sampled.csv   # Stratified sample for annotation
-            uber_reviews_tagged.csv    # Annotated reviews (in progress)
-        notebooks/
-            datasets_reviews.ipynb     # Initial data exploration
-            preprocessing_uber.ipynb   # Preprocessing analysis
-            uber_cleaned.ipynb         # Cleaned data verification
-        src/
-            preprocess.py              # Text cleaning and filtering pipeline
-            sampler.py                 # Stratified sampling strategies
-            multitag.py                # GUI annotation tool
-            train.py                   # Model training (in progress)
-            infer.py                   # Inference pipeline (in progress)
+    README.md
+    .gitignore
+    data/
+        uber_reviews.csv           # Raw dataset
+        uber_reviews_cleaned.csv   # Preprocessed reviews
+        uber_reviews_sampled.csv   # Stratified sample for annotation
+        uber_reviews_tagged.csv    # Annotated reviews (in progress)
+    notebooks/
+        preprocessing_uber.ipynb   # Preprocessing analysis
+        uber_cleaned.ipynb         # Cleaned data verification
+    src/
+        preprocess.py              # Text cleaning and filtering pipeline
+        sampler.py                 # Stratified sampling strategies
+        multitag.py                # GUI annotation tool
+        train.py                   # Model training (in progress)
+        infer.py                   # Inference pipeline (in progress)
+        outputs/
+            figures/
 ```
 
 ## Current Progress
