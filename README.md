@@ -25,8 +25,6 @@ RECLASS is a multi-task learning system which uses a shared BERT encoder with ta
 ## Repository Structure
 
 ```
-## Repository Structure
-
 6013/
     README.md
     .gitignore
