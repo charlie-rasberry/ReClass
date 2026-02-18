@@ -1,4 +1,3 @@
-<<<<<<< Updated upstream
 data/*.csv
 raw_data/
 *.ipynb_checkpoints
@@ -7,10 +6,5 @@ models/
 *.pt
 *.pth
 .ipynb_checkpoints/
-=======
-multitag/data/*.csv
-multitag/raw_data/
-multitag/.ipynb_checkpoints
-multitag/.vscode
-Uber Customer Reviews.csv
->>>>>>> Stashed changes
+*.csv
+backup/*.csv
