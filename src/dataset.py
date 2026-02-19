@@ -1,7 +1,6 @@
 # dataset.py
 
 # Takes a row from the csv, tokenizes the review and returns a tensor
-
 import torch
 import pandas as pd
 from torch.utils.data import Dataset
