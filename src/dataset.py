@@ -18,8 +18,8 @@ class ReviewDataset(Dataset):
     def __getitem__(self, idx):
         review = self.df.iloc[idx]['review']
 
-        # encoding['input_ids'] 
-        # encoding['attention_mask']
+        # encoding['input_ids'] 1D tensor of token ids, shape [max_length]
+        # encoding['attention_mask'] 1D tensor of 1s 0s showing real tokens vs padding, shape [max_length]
         # Both have shape [1, max_length] because of return_tensors='pt'
         # Squeeze them to [max_length] with .squeeze(0)
         encoding = self.tokenizer(
@@ -35,6 +35,7 @@ class ReviewDataset(Dataset):
         
         #   'attention_mask': tensor of shape [max_length]
 
+        # MTL structure labels as tensor scalars:
         #   'bug_report': tensor scalar (torch.tensor(label_value))
         #   'feature_request': tensor scalar (torch.tensor(label_value))
         #   'aspect': tensor scalar (torch.tensor(label_value))
