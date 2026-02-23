@@ -51,7 +51,8 @@ class ReviewDataset(Dataset):
     
 if __name__ == "__main__":
     dataset = ReviewDataset("data/processed/original_train.csv", AutoTokenizer.from_pretrained("FacebookAI/xlm-roberta-base"))
-    print(dataset.__getitem__(1))
+    # print(dataset.__getitem__(1))
+    
 
 
     

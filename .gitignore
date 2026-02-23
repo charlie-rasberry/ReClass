@@ -8,3 +8,5 @@ models/
 .ipynb_checkpoints/
 *.csv
 backup/*.csv
+runs/
+outputs/
