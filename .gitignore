@@ -10,3 +10,4 @@ models/
 backup/*.csv
 runs/
 outputs/
+*.pt
