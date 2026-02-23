@@ -43,14 +43,16 @@ class ReviewDataset(Dataset):
         return {
             'input_ids': encoding['input_ids'].squeeze(0),
             'attention_mask': encoding['attention_mask'].squeeze(0),
-            'bug_report': torch.tensor(self.df.iloc[idx]['bug_report']),
-            'feature_request': torch.tensor(self.df.iloc[idx]['feature_request']),
-            'aspect': torch.tensor(self.df.iloc[idx]['aspect']),
-            'aspect_sentiment': torch.tensor(self.df.iloc[idx]['aspect_sentiment'])
+            'bug_report': torch.tensor(self.df.iloc[idx]['bug_report'], dtype=torch.long),
+            'feature_request': torch.tensor(self.df.iloc[idx]['feature_request'], dtype=torch.long),
+            'aspect': torch.tensor(self.df.iloc[idx]['aspect'], dtype=torch.long),
+            'aspect_sentiment': torch.tensor(self.df.iloc[idx]['aspect_sentiment'], dtype=torch.long)
         }
+    
+if __name__ == "__main__":
+    dataset = ReviewDataset("data/processed/original_train.csv", AutoTokenizer.from_pretrained("FacebookAI/xlm-roberta-base"))
+    print(dataset.__getitem__(1))
 
-# uber = ReviewDataset("data/processed/original_train.csv", AutoTokenizer.from_pretrained("FacebookAI/xlm-roberta-base"))
-# print(uber.__getitem__(1))
 
     
 
