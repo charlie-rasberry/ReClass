@@ -11,7 +11,7 @@ import torch.nn as nn
 # Each nn.linear is used to map RoBERTa's hidden representation onto the output space of each task head
 # Each hidden representation is size 768
 
-class SingleTaskModel(nn.Module): #   SINGLE TASK MODEL ARCHITECTURE
+class SingleTaskModel(nn.Module): #   TASK-SPECIFIC/SINGLE-TASK MODEL ARCHITECTURE
     def __init__(self, task_name, num_classes, dropout_rate=0.2):
         super().__init__()
         self.encoder = XLMRobertaModel.from_pretrained("FacebookAI/xlm-roberta-base")

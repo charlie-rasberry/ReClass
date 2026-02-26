@@ -3,6 +3,7 @@
 import argparse # argparse for later switching to boosted data
 import os
 from datetime import datetime
+import time
 import torch
 import random
 import numpy as np
@@ -153,6 +154,7 @@ def main():
     )
 
     # ------------------- Training loop -------------------
+    start_time = time.time()
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     writer = SummaryWriter(f'runs/reclass_{run_name}_{timestamp}')
 
@@ -256,6 +258,10 @@ def main():
 
     writer.close()
     print("Training complete.")
+    end_time = time.time()
+    print(f"Total training time: {end_time - start_time:.2f} seconds")
+    if torch.cuda.is_available():
+        print(f"Peak GPU memory usage: {torch.cuda.max_memory_allocated(device) / (1024**3)} GB")
 
 if __name__ == "__main__":
     main()
