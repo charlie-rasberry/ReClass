@@ -11,3 +11,7 @@ backup/*.csv
 runs/
 outputs/
 *.pt
+__pycache__/
+*.png
+*.jpg
+*.json
