@@ -10,7 +10,21 @@ import torch.nn as nn
 
 # Each nn.linear is used to map RoBERTa's hidden representation onto the output space of each task head
 # Each hidden representation is size 768
-class Model(nn.Module):
+
+class SingleTaskModel(nn.Module): #   SINGLE TASK MODEL ARCHITECTURE
+    def __init__(self, task_name, num_classes, dropout_rate=0.2):
+        super().__init__()
+        self.encoder = XLMRobertaModel.from_pretrained("FacebookAI/xlm-roberta-base")
+        self.droput = nn.Dropout(dropout_rate)
+        self.head = nn.Linear(self.encoder.config.hidden_size, num_classes)
+        self.task_name = task_name
+    def forward(self, input_ids, attention_mask):
+        outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
+        output= self.droput(outputs.last_hidden_state[:, 0, :])
+        logits = self.head(output)
+        return {self.task_name: logits}
+
+class Model(nn.Module): #   MULTITASK MODEL ARCHITECTURE
     def __init__(self, dropout_rate=0.2): # Try other p values
         super().__init__()
         self.encoder = XLMRobertaModel.from_pretrained("FacebookAI/xlm-roberta-base")
