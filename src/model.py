@@ -11,7 +11,17 @@ import torch.nn as nn
 # Each nn.linear is used to map RoBERTa's hidden representation onto the output space of each task head
 # Each hidden representation is size 768
 
-class SingleTaskModel(nn.Module): #   TASK-SPECIFIC/SINGLE-TASK MODEL ARCHITECTURE
+class SingleTaskModel(nn.Module):
+    """Single task model to compare MTL approach to review classification
+    
+    Same XLM-RoBERTa only with one head, returns same dictionary format so training loop is the same
+    just different args
+    
+        Args:
+            task_name: which of the 4 tasks are we training for
+            num_classes: number of output classes for the task
+            dropout_rate: probability applied to cls representation, randomly drops tokens for better results
+        """
     def __init__(self, task_name, num_classes, dropout_rate=0.2):
         super().__init__()
         self.encoder = XLMRobertaModel.from_pretrained("FacebookAI/xlm-roberta-base")
@@ -24,14 +34,23 @@ class SingleTaskModel(nn.Module): #   TASK-SPECIFIC/SINGLE-TASK MODEL ARCHITECTU
         logits = self.head(output)
         return {self.task_name: logits}
 
-class Model(nn.Module): #   MULTITASK MODEL ARCHITECTURE
-    def __init__(self, dropout_rate=0.2): # Try other p values
+class Model(nn.Module): 
+    """ Multitask model with shared encoder (XLM-RoBERTa) and four task specific heads
+
+    Architecture: XLM-RoBERTa base (12 layers 768 hidden size), cls token representation is processed through 
+    shared dropout then ito four linear classification heads. Shared training optimises all tasks simultaneously,
+    allowing the encoder to learn from the shared representations / generalisations
+
+        Args:
+            dropout_rate: probability applied to preven co-adaptation of neurons across heads 0.2 is standard default
+    """
+    def __init__(self, dropout_rate=0.2):
         super().__init__()
         self.encoder = XLMRobertaModel.from_pretrained("FacebookAI/xlm-roberta-base")
 
         hidden_size = self.encoder.config.hidden_size
 
-        # Applied across whole output, shared
+        # Applied across shared cls token, before all task heads 
         self.dropout = nn.Dropout(dropout_rate)
 
         self.bug_head = nn.Linear(hidden_size, 2)
@@ -39,10 +58,11 @@ class Model(nn.Module): #   MULTITASK MODEL ARCHITECTURE
         self.aspect_head = nn.Linear(hidden_size, 6)
         self.aspect_sentiment_head = nn.Linear(hidden_size, 3)
 
-    # Pass through encoder then extract the token representation
+    # Pass through encoder then extract the token representation through [batch_size, 768]
     # Apply droupout to it, take scores for each head, return them in a dictionary
     def forward(self, input_ids, attention_mask):
         outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
+        # index 0 from [batch_size, 768]
         output = outputs.last_hidden_state[:, 0, :]
 
         output = self.dropout(output)

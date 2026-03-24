@@ -1,6 +1,6 @@
 # train.py
-# some code directly from pytorch docs https://docs.pytorch.org/tutorials/beginner/introyt/trainingyt.html
-import argparse # argparse for later switching to boosted data
+# structure adapted from Pytorch introductory tutorials https://docs.pytorch.org/tutorials/beginner/introyt/trainingyt.html
+import argparse
 import os
 from datetime import datetime
 import time
@@ -25,7 +25,7 @@ from model import Model, SingleTaskModel
 
 
 # =======================================================================
-#                       Multitask implementation
+#         Training script for MTL and STL training configurations
 # =======================================================================
 
 # NFR5, reproducibility
@@ -34,12 +34,16 @@ torch.manual_seed(SEED)
 np.random.seed(SEED)
 random.seed(SEED)
 
-# class weights, training loop and early stopping
 
 # ------------------- Class weights -------------------
 # Using weights inversely proportional to class frequencies to avoid majority class bias, 
 # prioritize useful bug reports / feature requests
 def compute_weights(df, column, device):
+    """Copmutes inverse frequency class weights for a label column
+    
+    Uses sklearns balanced mode
+    Rare classes receive higher weights to penalise so it can learn more from less
+    """
     classes = np.unique(df[column])
     weights = compute_class_weight(class_weight='balanced', classes=classes, y=df[column])
     return torch.tensor(weights, dtype=torch.float).to(device)
@@ -63,19 +67,17 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Starting training...", flush=True)
     print("Using device:", device)
-    # Remove randomness
+    # Set cuda seeds for reproducibility
     if torch.cuda.is_available():
         print("GPU:", torch.cuda.get_device_name(0))
         torch.cuda.manual_seed_all(SEED)
         torch.cuda.manual_seed(SEED)
     print(f"Using dataset: {args.dataset.upper()}")
+    # Force deterministic for reproducibility at a slight performance cost
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    """
-    Data loading:
-
-    """
+    # load data
     train = f"data/processed/{args.dataset}_train.csv"
     val = f"data/processed/{args.dataset}_val.csv"
     os.makedirs("outputs", exist_ok=True)
@@ -117,19 +119,13 @@ def main():
     feature_weights = compute_weights(train_df, 'feature_request', device)
     aspect_weights = compute_weights(train_df, 'aspect', device)    
     aspect_sentiment_weights = compute_weights(train_df, 'aspect_sentiment', device)
-    # Move tensors to cpu and conver to numpy for usage with sklearn classification report
-    # Use detatch() later for predictions
+    
     print("Bug report class weights:", bug_weights.cpu().numpy())
     print("Feature request class weights:", feature_weights.cpu().numpy())
     print("Aspect class weights:", aspect_weights.cpu().numpy())
     print("Aspect sentiment class weights:", aspect_sentiment_weights.cpu().numpy())
     
-    #   for later
-    #   1.0 * bug_loss +
-    #   1.0 * feature_loss +
-    #   0.5 * aspect_loss +
-    #   0.5 * sentiment_loss
-    # FR4-FR7: Task specific loss functions
+    # equal weighted task losses. unequal was considered but equal weights performed well without adding complexity
     criterions = {
         'bug_report': nn.CrossEntropyLoss(weight=bug_weights),
         'feature_request': nn.CrossEntropyLoss(weight=feature_weights),
@@ -140,7 +136,7 @@ def main():
     # -------------------- Optimizer and scheduler -------------------
     optimizer = torch.optim.AdamW(
         model.parameters(), 
-        lr=args.lr,        # change
+        lr=args.lr,        
         weight_decay=0.01 
         )
     
@@ -163,7 +159,7 @@ def main():
 
     # Initialize with inf to capture best validation loss easily
     best_vloss = float('inf')
-
+    
     for epoch in range(args.epochs):
         print(f"EPOCH {epoch + 1}/{args.epochs}")
         model.train(True)

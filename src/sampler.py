@@ -1,21 +1,16 @@
-#   TODO:   Add verification comparison between ratings
-#   TODO:   Clean up the logging print statements
-
-
 import pandas as pd
 import numpy as np
 
 print(pd.__version__)
 print(np.__version__)
 
-path = "multitag/data/uber_reviews_cleaned.csv"
-sampled_path = "multitag/data/uber_reviews_sampled.csv"
-original_path = "multitag/data/uber_reviews.csv" ### only for distribution comparison
+path = "data/raw/uber_reviews_cleaned.csv"
+sampled_path = "data/raw/uber_reviews_sampled.csv"
+original_path = "data/raw/uber_reviews.csv" ### only for distribution comparison
 class Sampler:
     def __init__(self, data_path, target_samples):
 
         self.data_path = data_path
-        self.target_samples = 5000  # target number of samples
         self.stratify_column = "rating"  # column to stratify by (another sampleset will use keyword boosting to aid feature request / bug report numbers)
 
         self.original_data = pd.read_csv(original_path, low_memory=False)
@@ -39,7 +34,7 @@ class Sampler:
         print(f"Original Distribution from {original_path}:")
         print((_origdist*100).round(1),"\n")
 
-        self.data.info()
+        self.data.info(verbose=True)
 
     #   add sampling method here
     #   random sample 5000 entries with stratifiying by rating
@@ -52,43 +47,53 @@ class Sampler:
     2     3.9% (41707)
     Name: proportion, dtype: object
     """
-    """
     
-    Sample size by rating
-    Redundant calculation, kept for clarity
-    Doesn't factor that the distribution changed greatly after preprocessing
+    """
+    IGNORE --- Left in just in case
 
+    Sample randomly
+    Redundant calculation
+    Doesn't factor that the distribution changed greatly after preprocessing
     """
     def get_stratified_sample(self) -> pd.DataFrame:
            stratified_sample = (
             self.data
-            .reset_index(drop=True)
-            .apply(self.x)
-            .sample(n=self.target_samples, random_state=42)
+            .reset_index(drop=True) # remove messy indexes
+            .apply(self.sample_col) # applies to each column
+            .sample(n=self.target_samples, random_state=42) # 42 on sampler 4321 on any other file
             )
            return stratified_sample
         
     
+    def sample_col(self, column) -> pd.DataFrame:    
+        """
+        IGNORE --- Left in just in case
 
-    # x(self): helper function for get_proportional_sample and get_stratified_sample =FIX=
-    def x(self, x):    
-        n = int(len(x) / self.total * self.target_samples)
-        n = max(n,1)
-        return x.sample(n=n, random_state=42)
-    """
-    get_proportional_sample()
+        Randomly sample, including conflicting math, I guess I was going to stratify
+        """
+        samples_per_column = int(len(column) / self.total * self.target_samples) # pointless 1 *5000
+        samples_per_column = max(samples_per_column,1) # also pointless
+        return column.sample(n=samples_per_column, random_state=42)
 
-    """
-    
+
     """
     original_distribution_sample()
     The main sampling method for our labelling as it 
-    keeps composition of the original uber dataset
+    keeps composition of the original uber dataset, verified in 
     which is a fairer comparison, may also work better in general
 
-    inputs:
+    verified post preprocessing in rating_distribution.ipynb and verify_tagged_distributions.ipynb
+    and raw data distribution verified at the bottom of verify_tagged_distributions.ipynb
 
-    outputs:
+    
+    manually coded distributions taken from notebooks
+
+    for ratings and actual number of samples 
+    rating data is the whole data for a rating as we iterate
+    has error handling if totals doesn't match the required amount of samples per the orig distrib
+    randomise the indexes (samples) and appends to the new dataset
+
+
 
     """
     def original_distribution_sample(self):
@@ -102,8 +107,8 @@ class Sampler:
         print("Target Distribution =", original_dist)
         samples = []
         for rating, num_samples in original_dist.items():
-            rating_data = self.data[self.data[self.stratify_column] == rating]
-            if len(rating_data) < num_samples:
+            rating_data = self.data[self.data[self.stratify_column] == rating] # stratify_column = "rating"
+            if len(rating_data) < num_samples:                                 # data is a pd.dataframe of the set
                 print("Missing samples available for rating")
                 num_samples = len(rating_data)
             sample = rating_data.sample(n = num_samples,random_state=42)
@@ -127,9 +132,9 @@ class Sampler:
 
     def sample_with_keywords(self):
         #TODO add keywords for feature classification
-        print(f"\n{"="*50}")
+        print(f"\n{'='*50}")
         print("Keyword influenced / rating stratified set")
-        print(f"\n{"="*50}")
+        print(f"\n{'='*50}")
 
         bug_keywords = ["crash","freeze", "error",
                         "stop", "doesnt work", "doesn't work","loading",
@@ -204,7 +209,7 @@ class Sampler:
 
 def main():
     
-    sampler = Sampler("multitag/data/uber_reviews_cleaned.csv", target_samples=5000)
+    sampler = Sampler("data/raw/uber_reviews_cleaned.csv", target_samples=5000)
 
     # Choose sampling strategy
     print(f"\n{'='*50}")
@@ -218,19 +223,19 @@ def main():
     
     if choice == '1':
         sample = sampler.get_stratified_sample()
-        sampler.save_sample(sample, "multitag/data/uber_reviews_sampled.csv")
+        sampler.save_sample(sample, "data/raw/uber_reviews_sampled.csv")
         
     elif choice == '2':
         sample = sampler.original_distribution_sample()
-        sampler.save_sample(sample, "multitag/data/uber_reviews_sampled.csv")
+        sampler.save_sample(sample, "data/raw/uber_reviews_sampled.csv")
         
     elif choice == '3':
         sample = sampler.sample_with_keywords()
-        sampler.save_sample(sample, "multitag/data/uber_reviews_sampled.csv")
+        sampler.save_sample(sample, "data/raw/uber_reviews_sampled.csv")
 
     elif choice == '4':
         sample = sampler.sample_tiny_size()
-        sampler.save_sample(sample,"multitag/data/uber_review_temp.csv")
+        sampler.save_sample(sample,"data/raw/uber_review_temp.csv")
         
 
 

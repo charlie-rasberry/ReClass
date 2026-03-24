@@ -1,10 +1,11 @@
 # preprocess.py
 
+# langdetect was experimented with but wasn't consistent enough to be a better choice than translating manually
+
 import pandas as pd
 import re
-from langdetect import detect, LangDetectException
 
-def clean_text(text):
+def clean_text(text) -> str:
     """Clean review text by removing URLS, emails, excessive whitespace
 
     Input: 
@@ -19,30 +20,21 @@ def clean_text(text):
     # Convert to lower for uniformity
     text = str(text).lower()
     
-    # Remove URLs using regex
+    # Remove URLs using regex, match http in any non whitespace char (\S)  numerous (+) times. same with either ( | ) www
     text = re.sub(r'http\S+|www\S+', '', text)
     
-    # Remove emails
+    # Remove emails, one or more (+) non whitespace (\S) before "@" with trailing \S up replace with '' for each text (review)
     text = re.sub(r'\S+@\S+', '', text)
 
-    # Normalize punctuation
+    # Normalize punctuation, any character except line terminators (\.) at least 2 times {2,} for . ! ? replace with a single
     text = re.sub(r'\.{2,}', '.', text)
     text = re.sub(r'!{2,}', '!', text)
     text = re.sub(r'\?{2,}', '?', text)
     
-    # Remove excessive whitespace by replacing with single whitespace where there is trailing spaces
+    # Remove excessive whitespace (\s) by replacing with single whitespace where there is trailing spaces
     text = re.sub(r'\s+', ' ', text).strip()
     
     return text
-
-def detect_language(text):
-    """Detect language of text"""
-    try:
-        if pd.isna(text) or len(str(text).strip()) < 10:
-            return 'unknown'
-        return detect(str(text))
-    except LangDetectException:
-        return 'unknown'
 
 def preprocess_uber_reviews(input_path, output_path):
     """
