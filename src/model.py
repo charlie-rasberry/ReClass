@@ -52,7 +52,7 @@ class Model(nn.Module):
 
         # Applied across shared cls token, before all task heads 
         self.dropout = nn.Dropout(dropout_rate)
-
+        # get logits for each head
         self.bug_head = nn.Linear(hidden_size, 2)
         self.feature_head = nn.Linear(hidden_size, 2)
         self.aspect_head = nn.Linear(hidden_size, 6)

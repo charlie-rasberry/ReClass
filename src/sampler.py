@@ -190,7 +190,6 @@ class Sampler:
         mini_sample = self.data.sample(200)     #   reading some samples manually
         return mini_sample
 
-         
     
     def save_sample(self, sample_df,output_path):
         """Save sample and display statistics"""

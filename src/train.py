@@ -126,6 +126,7 @@ def main():
     print("Aspect sentiment class weights:", aspect_sentiment_weights.cpu().numpy())
     
     # equal weighted task losses. unequal was considered but equal weights performed well without adding complexity
+    # CrossEntropyLoss = LogSoftmax + NLLLoss (negative log likelihood) 
     criterions = {
         'bug_report': nn.CrossEntropyLoss(weight=bug_weights),
         'feature_request': nn.CrossEntropyLoss(weight=feature_weights),
@@ -134,6 +135,7 @@ def main():
     }
 
     # -------------------- Optimizer and scheduler -------------------
+    # adaptive momentum and weight decay keeps track of previous weight adaptions and ensures they dont get too large (weight also shrinks towards 0 each pass) 
     optimizer = torch.optim.AdamW(
         model.parameters(), 
         lr=args.lr,        
