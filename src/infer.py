@@ -1,15 +1,23 @@
-import pandas as pd
-import numpy as np
+# evauluate.py
+import os
 import torch
+import time
 import argparse
-from torch.utils.tensorboard import SummaryWriter
+import json
+import torch.nn.functional as F
+import argparse
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+from torch.utils.data import DataLoader
 from transformers import AutoTokenizer
-from transformers import AutoModelForSequenceClassification
+from sklearn.metrics import classification_report, confusion_matrix, f1_score
+from torch.utils.data import Dataset
 
-# mappings
-binary_map = {1:'Yes', 0:'No'}
-aspect_map = {0:'App', 1:'Driver', 2:'General', 3:'Payment', 4:'Pricing', 5:'Service'}
-sentiment_map = {0:'Positive', 1:'Neutral', 2:'Negative'}
+
+from dataset import InferenceDataset
+from model import Model, SingleTaskModel
 
 label_names = {
     'bug_report': ['No', 'Yes'],
@@ -22,19 +30,27 @@ SEED = 4321
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 
+
 def parse_args():
     parser = argparse.ArgumentParser(description="RECLASS, Multitask learning for review classification.")
     parser.add_argument("--model_path", type=str, required=True, help=".pt file path")
     parser.add_argument("--task", type=str, default="all", choices=["all", "bug_report", "feature_request", "aspect", "aspect_sentiment"])
     parser.add_argument("--interactive", help="Loops reading input until exit()")
     parser.add_argument("--text", help="Use command line text for input")
-    parser.add_argument("--dataset", type=str, required=True, help="Enter a file for inference")
+    parser.add_argument("--dataset", type=str, help="Enter a file for inference")
+    parser.add_argument("--batch_size", type=int, default=16)
+    parser.add_argument("--mode", type=str, required=True, choices=["mtl", "stl"], help="mtl or stl")
+    parser.add_argument("--text_column", type=str, required=True, default="review", help="Where is the text column")
 
     return parser.parse_args()
 
 
 
 def main():
+    os.makedirs("outputs/inference", exist_ok=True)
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    # this section is nearly identical to the first part of evaluate.py
     args = parse_args()
     print(f'='*50)
     print(f' '*15 + "Starting inference")
@@ -45,10 +61,73 @@ def main():
     else:
         print(f' '*15 + "No GPUs available")
     print(f'='*50 + "\n")
-    print(f"Running inference on: {args.model_path.upper()} using {args.dataset}")
-
+    print(f"Running inference on: {args.model_path.upper()} using data/processed/{args.dataset}.csv")
+    print("Loading model, tokenizer and datasets ...")
     tokenizer = AutoTokenizer.from_pretrained("FacebookAI/xlm-roberta-base")
-    infer_data = f"data/processed/{args.dataset}_infer.csv"
+    infer = f"data/processed/{args.dataset}.csv"
+    infer_df = pd.read_csv(infer)
+    infer_data = InferenceDataset(infer, tokenizer, args.text_column)
+    infer_loader = DataLoader(infer_data, batch_size=args.batch_size)
 
-if __name__ == main():
+    if args.mode == "mtl":
+        model = Model().to(device)
+        print(f"Loading weights from {args.model_path}...")
+        model.load_state_dict(torch.load(args.model_path, map_location=device))
+        model.eval()
+        active_tasks = ['bug_report', 'feature_request', 'aspect', 'aspect_sentiment']
+    else: 
+        if args.task == "all":
+            raise ValueError("For STL, please specify a single task with --task")
+        task_classes = {
+            'bug_report': 2,
+            'feature_request': 2,
+            'aspect': 6,
+            'aspect_sentiment': 3
+            }
+        model = SingleTaskModel(args.task, task_classes[args.task]).to(device)
+        active_tasks = [args.task]
+        print(f"Loading weights from {args.model_path}...")
+        model.load_state_dict(torch.load(args.model_path, map_location=device))
+        model.eval()
+        # the above section is nearly identical to the first part of evaluate.py
+        all_labels =      {task: [] for task in active_tasks}
+        all_preds =       {task: [] for task in active_tasks}
+        all_confidences = {task: [] for task in active_tasks}
+    print("Running inference on test set")
+    with torch.no_grad():
+        for batch in infer_loader:
+            input_ids = batch['input_ids'].to(device)
+            attention_mask = batch['attention_mask'].to(device)
+            outputs = model(input_ids, attention_mask)
+            for task in active_tasks:
+                # labels = batch[task].to(device)
+                logits = outputs[task]
+                preds = torch.argmax(logits, dim=1)
+
+                probs = F.softmax(logits, dim=1)
+                confidence = probs.max(dim=1).values
+
+                # all_labels[task].extend(labels.cpu().numpy())
+                all_preds[task].extend(preds.cpu().numpy())
+                all_confidences[task].extend(confidence.cpu().numpy())
+
+    df = pd.DataFrame({
+    "text": infer_df["review_description"]
+    })
+
+    for task in active_tasks:  # ensures ALL tasks included
+        df[f"{task}_pred"] = [label_names[task][p] for p in all_preds[task]]
+        df[f"{task}_confidence"] = all_confidences[task]
+
+    summary = {
+        "mode": args.mode,
+        "dataset": args.dataset,
+        "task": args.task,
+        "model_path": args.model_path,
+        "results": {}
+    }
+    
+
+
+if __name__ == "__main__":
     main()
