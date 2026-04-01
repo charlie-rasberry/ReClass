@@ -1,5 +1,5 @@
 # dataset.py
-# tokenize data using (sentencepiece) XLM-RoBERTa
+# tokenize data using (sentencepiece) XLM-RoBERTas tokenizer
 # Takes a row from the csv, tokenizes the review and returns a tensor
 import torch
 import pandas as pd
@@ -65,7 +65,10 @@ class InferenceDataset(Dataset):
                 return len(self.df)
         
         def __getitem__(self, idx):
-                review = self.df.iloc[idx][self.text_column]
+                #review = self.df.iloc[idx][self.text_column] no longer enough due to missing values as I kept all reviews 
+                review = str(self.df.iloc[idx][self.text_column])
+                if review == 'nan' or review.strip() == '':
+                    review = ' '
                 encoding = self.tokenizer(review, max_length=self.max_length, padding='max_length', truncation=True, return_tensors='pt')
                 return {
                         'input_ids': encoding['input_ids'].squeeze(0),
