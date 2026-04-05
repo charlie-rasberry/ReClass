@@ -1,13 +1,9 @@
 # multitag.py
-# This app enables manual annotation of reviews in the Uber dataset, for training with 
-# to achieve review classifications with multi task deep learning
+# Manual annotation  tool for labelling reviews in the Uber reviews dataset, for multitask training
 
-# In another time I would have had much more tasks / classifications so mtl can perform better (that would mean better labelling), 
-#at least that is my prediction of why this may not be as good as I wanted
 import tkinter as tk
 from tkinter import ttk
 import pandas as pd
-# import langdetect
 import os
 
 class MultiTag:
@@ -41,9 +37,6 @@ class MultiTag:
         self.number_of_aspects = 6  # number of aspect buttons
         self.root.title("MultiTag")
 
-        #self.display_review = tk.Text(self.root, height=20, width=100, wrap='word')
-        #self.display_review.grid(row=0, column=0, columnspan=4, padx=10, pady=10)
-
         # Colors for active label
         self.color_incomplete = "#003366"
         self.color_complete = "#00AA00"
@@ -51,8 +44,7 @@ class MultiTag:
         # Paths
         tagged_path = "data/uber_reviews_tagged.csv"
         sampled_path = "data/uber_reviews_sampled.csv"
-        # self.load_review_data("data/uber_reviews_sampled.csv")
-        # self.load_review_data("data/uber_reviews_tagged.csv")
+
         if not os.path.exists(tagged_path):
             print(f"Tagged file did not exist, making one at: {sampled_path}")
             sampled_df = pd.read_csv(sampled_path, low_memory=False)
@@ -89,13 +81,13 @@ class MultiTag:
         self.status_label.grid(row=2, column=0, columnspan=4, pady=(0, 5))
 
 
-        #   Labels ROW 3
+        # ROW 3: Field labels
         ttk.Label(self.root, text="Feature Request ? 1 (yes), 0 (no)").grid(row=3, column=0, pady=(5, 2))
         ttk.Label(self.root, text="Bug Report ? 1 (yes), 0 (no)").grid(row= 3, column=1, pady=(5, 2))
         ttk.Label(self.root, text="Aspect ? A/S/D/F/G/H/J/K/L ").grid(row= 3, column=2, pady=(5, 2))
         ttk.Label(self.root, text="Aspect Sentiment ? A/S/D").grid(row= 3, column=3, pady=(5, 2))
 
-        # ROW 4 |Buttons| 
+        # ROW 4: Input buttons
         # Feature Requests
         self.feature_true = ttk.Button(self.root, text="1",command=lambda: self.feature_pressed("1"), width= self.btn_width).grid(row=4, column=0, pady=2)
         self.feature_false = ttk.Button(self.root, text="0",command=lambda: self.feature_pressed("0"), width= self.btn_width).grid(row=5, column=0, pady=2)
@@ -132,20 +124,15 @@ class MultiTag:
         self.root.bind("f", self.handle_key)
         self.root.bind("g", self.handle_key)
         self.root.bind("h", self.handle_key)
-        # self.root.bind("j", self.handle_key)
-        # self.root.bind("k", self.handle_key)
-        # self.root.bind("l", self.handle_key)
 
-
-    
+   
         self.display_next_review()
-        #   self.save_tags("data/uber_reviews_tagged.csv")
         self.root.mainloop()
 
     def handle_key(self, event):
         key = event.char
     
-        # Column 0 or 1: feature/bug (1 and 0)
+        # Feature Request and Bug Report are binary input (1 and 0 keys)
         if key in ['1', '0']:
             if self.active_column == 0:
                 self.feature_pressed(key)
@@ -159,7 +146,7 @@ class MultiTag:
             self.sentiment_pressed(key.upper())
 
     def update_status(self):
-        """Update status label and highlight color based on completion state"""
+        """Update status label and highlight"""
         if self.all_labels_complete():
             self.highlight.configure(bg=self.color_complete)
             self.status_label.configure(
@@ -212,22 +199,22 @@ class MultiTag:
 
 
     def load_review_data(self, data_path):
-        """Load review data from a CSV file."""
+        """Load review data from a CSV file. Adds annotation columns if they don't exist."""
         self.review_data = pd.read_csv(data_path, low_memory=False)
         if "tagged" not in self.review_data.columns:
-            self.review_data["tagged"] = 0              # Initialize tagged column if not present
+            self.review_data["tagged"] = 0             
         if "feature_request" not in self.review_data.columns:
-            self.review_data["feature_request"] = ""    # Initialize feature_request column if not present
+            self.review_data["feature_request"] = ""   
         if "bug_report" not in self.review_data.columns:
-            self.review_data["bug_report"] = ""         # Initialize bug_report column if not present
+            self.review_data["bug_report"] = ""         
         if "aspect" not in self.review_data.columns:
-            self.review_data["aspect"] = ""             # Initialize aspect column if not present
+            self.review_data["aspect"] = ""           
         if "aspect_sentiment" not in self.review_data.columns:
-            self.review_data["aspect_sentiment"] = ""   # Initialize aspect_sentiment column if not present
+            self.review_data["aspect_sentiment"] = "" 
         print(f"Loaded {len(self.review_data)} reviews from {data_path}")
     
     def display_next_review(self):
-        """Display the next review in the text box."""
+        """Display the next unlabelled review in the text box."""
         self.current_review_index = self.get_current_review_index()
         if self.current_review_index < len(self.review_data):
             review = self.review_data.iloc[self.current_review_index]
@@ -283,9 +270,8 @@ class MultiTag:
             row["aspect_sentiment"] != "")
     
     def save_tags(self, save_path):
-        """Save the tagged data to a CSV file."""
+        """Save the current tagged data to a CSV file."""
         self.review_data.to_csv(save_path, index=False)
-        # print(f"Tagged data saved to {save_path}")
 
     def quit_app(self, event):
         tagged_count = (self.review_data['tagged'] == 1).sum()

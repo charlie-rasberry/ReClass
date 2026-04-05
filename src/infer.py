@@ -1,4 +1,6 @@
 # infer.py
+# Run inference using MTL or STL on various inputs (CSV or User)
+
 from datetime import datetime
 import os
 import torch
@@ -20,8 +22,6 @@ from torch.utils.data import Dataset
 from dataset import InferenceDataset
 from model import Model, SingleTaskModel
 
-
-
 label_names = {
     'bug_report': ['No', 'Yes'],
     'feature_request': ['No', 'Yes'],
@@ -32,9 +32,6 @@ label_names = {
 SEED = 4321
 torch.manual_seed(SEED)
 np.random.seed(SEED)
-
-
-
 
 def parse_args():
     parser = argparse.ArgumentParser(description="RECLASS, Multitask learning for review classification.")
@@ -55,7 +52,7 @@ def main():
     os.makedirs("outputs/inference", exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # this section is nearly identical to the first part of evaluate.py
+    # Mirrors the evaluation script with addition of interactive modes
     args = parse_args()
     print(f'{"="*50}')
     print(f'{"Starting inference"}')
@@ -70,7 +67,7 @@ def main():
     print("Loading model, tokenizer and datasets ...")
     tokenizer = AutoTokenizer.from_pretrained("FacebookAI/xlm-roberta-base")
 
-    # Let the user decide if they want to run inference on the whole dataset or via the shell input
+    # Support CSV and interactive input
     if not args.interactive and not args.text:
         infer = f"data/processed/{args.dataset}.csv"
         infer_df = pd.read_csv(infer)

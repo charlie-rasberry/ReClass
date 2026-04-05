@@ -1,27 +1,13 @@
 # model.py
-# One encoder, four shared heads(bug report, feature request, aspect, aspect sentiment)
-# 12 transformer layers, 12 attention heads
+# Shared encoder (XLM-RoBERTa) with either multitask heads for all 4 tasks or single task head for comparison
 
 from transformers import AutoTokenizer, AutoModelForMaskedLM, XLMRobertaModel
 import torch.nn as nn
 
-# Using dropout, This has proven to be an effective technique 
-# for regularization and preventing the co-adaptation of neurons as described in https://arxiv.org/abs/1207.0580
-
-# Each nn.linear is used to map RoBERTa's hidden representation onto the output space of each task head
-# Each hidden representation is size 768
-
+# Using dropout before classification to reduce overfitting
 class SingleTaskModel(nn.Module):
-    """Single task model to compare MTL approach to review classification
-    
-    Same XLM-RoBERTa only with one head, returns same dictionary format so training loop is the same
-    just different args
-    
-        Args:
-            task_name: which of the 4 tasks are we training for
-            num_classes: number of output classes for the task
-            dropout_rate: probability applied to cls representation, randomly drops tokens for better results
-        """
+    """Single task model with one head to compare MTL approach to review classification"""
+
     def __init__(self, task_name, num_classes, dropout_rate=0.2):
         super().__init__()
         self.encoder = XLMRobertaModel.from_pretrained("FacebookAI/xlm-roberta-base")
@@ -35,15 +21,7 @@ class SingleTaskModel(nn.Module):
         return {self.task_name: logits}
 
 class Model(nn.Module): 
-    """ Multitask model with shared encoder (XLM-RoBERTa) and four task specific heads
-
-    Architecture: XLM-RoBERTa base (12 layers 768 hidden size), cls token representation is processed through 
-    shared dropout then ito four linear classification heads. Shared training optimises all tasks simultaneously,
-    allowing the encoder to learn from the shared representations / generalisations
-
-        Args:
-            dropout_rate: probability applied to preven co-adaptation of neurons across heads 0.2 is standard default
-    """
+    """ Multitask model with shared encoder and 4 task specific heads."""
     def __init__(self, dropout_rate=0.2):
         super().__init__()
         self.encoder = XLMRobertaModel.from_pretrained("FacebookAI/xlm-roberta-base")
@@ -58,8 +36,7 @@ class Model(nn.Module):
         self.aspect_head = nn.Linear(hidden_size, 6)
         self.aspect_sentiment_head = nn.Linear(hidden_size, 3)
 
-    # Pass through encoder then extract the token representation through [batch_size, 768]
-    # Apply droupout to it, take scores for each head, return them in a dictionary
+    # Pass through encoder once then extract the token representation, then reuse the shared represenetation across all tasks
     def forward(self, input_ids, attention_mask):
         outputs = self.encoder(input_ids=input_ids, attention_mask=attention_mask)
         # index 0 from [batch_size, 768]
@@ -67,7 +44,6 @@ class Model(nn.Module):
 
         output = self.dropout(output)
 
-        # Logits for each head:
         bug_logits = self.bug_head(output)
         feature_logits = self.feature_head(output)
         aspect_logits = self.aspect_head(output)

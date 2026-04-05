@@ -11,11 +11,12 @@ class Sampler:
     def __init__(self, data_path, target_samples):
 
         self.data_path = data_path
-        self.stratify_column = "rating"  # column to stratify by (another sampleset will use keyword boosting to aid feature request / bug report numbers)
+        # Default stratification method is based on original rating distribution
+        self.stratify_column = "rating"  
 
         self.original_data = pd.read_csv(original_path, low_memory=False)
         self.data = pd.read_csv(self.data_path, low_memory=False)
-        self.total = len(self.data)  # total number of records in the dataset
+        self.total = len(self.data)  # total number of records in the working dataset
 
         print("="*50)
         print("SAMPLER INITIALIZED")
@@ -35,25 +36,10 @@ class Sampler:
         print((_origdist*100).round(1),"\n")
 
         self.data.info(verbose=True)
+    """
+    Kept for reference with later sampling methods
 
-    #   add sampling method here
-    #   random sample 5000 entries with stratifiying by rating
-    """
-    rating
-    5    57.1% (611133)
-    1    26.5% (283895)
-    4     7.8% (82953)
-    3     4.7% (49928)
-    2     3.9% (41707)
-    Name: proportion, dtype: object
-    """
-    
-    """
-    IGNORE --- Left in just in case
-
-    Sample randomly
-    Redundant calculation
-    Doesn't factor that the distribution changed greatly after preprocessing
+    Samples from current processed data rather than matching the original distribution
     """
     def get_stratified_sample(self) -> pd.DataFrame:
            stratified_sample = (
@@ -67,9 +53,8 @@ class Sampler:
     
     def sample_col(self, column) -> pd.DataFrame:    
         """
-        IGNORE --- Left in just in case
-
-        Randomly sample, including conflicting math, I guess I was going to stratify
+        Samples a proportional number of rows from one column
+        Deprecated: Not used in final pipeline, kept for reference
         """
         samples_per_column = int(len(column) / self.total * self.target_samples) # pointless 1 *5000
         samples_per_column = max(samples_per_column,1) # also pointless
@@ -77,24 +62,9 @@ class Sampler:
 
 
     """
-    original_distribution_sample()
-    The main sampling method for our labelling as it 
-    keeps composition of the original uber dataset, verified in 
-    which is a fairer comparison, may also work better in general
-
-    verified post preprocessing in rating_distribution.ipynb and verify_tagged_distributions.ipynb
-    and raw data distribution verified at the bottom of verify_tagged_distributions.ipynb
-
-    
-    manually coded distributions taken from notebooks
-
-    for ratings and actual number of samples 
-    rating data is the whole data for a rating as we iterate
-    has error handling if totals doesn't match the required amount of samples per the orig distrib
-    randomise the indexes (samples) and appends to the new dataset
-
-
-
+    Main sampling method to annotate
+    Samples reviews matching the original raw dataset distribution, so the labelled set
+    better represents the original data and is more comparable to the unlabelled set.
     """
     def original_distribution_sample(self):
         original_dist = {
@@ -117,21 +87,14 @@ class Sampler:
         return original_sample
     
     """
-    sample_with_keywords()
-
-    In order to train on more bugs and features data in 
-    future this method was created
+    Build a sample with more likely bugs and feature reviews
     - 2000 balanced by rating (400 per)
     - 1500 likely bugs using bug_keywords list
     - 1500 likely features using feature_keywords list
-
-    inputs:
-    outputs:
-    
     """
 
     def sample_with_keywords(self):
-        #TODO add keywords for feature classification
+        # Keyword lists for oversampling likely bug reports and feature requests
         print(f"\n{'='*50}")
         print("Keyword influenced / rating stratified set")
         print(f"\n{'='*50}")
@@ -181,18 +144,16 @@ class Sampler:
         # Drop helper columns
         keyword_sample = keyword_sample.drop(columns=['likely_bug', 'likely_feature'])
 
-        
-        
         print(f"\n Total samples: {len(keyword_sample):,}")
         return keyword_sample
 
     def sample_tiny_size(self):
-        mini_sample = self.data.sample(200)     #   reading some samples manually
+        mini_sample = self.data.sample(200)     # for reading some samples manually
         return mini_sample
 
     
     def save_sample(self, sample_df,output_path):
-        """Save sample and display statistics"""
+        """Save sample and display summary statistics"""
         sample_df.to_csv(output_path, index=False)
         
         print(f"\n{'='*50}")

@@ -1,19 +1,13 @@
 # preprocess.py
 
+# Text cleaning and preprocessing for the Uber Reviews Dataset
 # langdetect was experimented with but wasn't consistent enough to be a better choice than translating manually
 
 import pandas as pd
 import re
 
 def clean_text(text) -> str:
-    """Clean review text by removing URLS, emails, excessive whitespace
-
-    Input: 
-    text - the review text to clean
-
-    Outputs:
-    str: the cleaned review text
-    """
+    """Normalise review text by removing URLS, emails, excessive whitespace"""
     if pd.isna(text):
         return ""
     
@@ -53,12 +47,6 @@ def preprocess_uber_reviews(input_path, output_path):
     6. Removes less than 5 word reviews
     6. Saves the cleaned dataset to uber_reviews_cleaned.csv
 
-    Inputs:
-    input_path (str): Path to uber_reviews.csv
-    output_path (str): Path to the cleaned CSV uber_reviews_cleaned.csv
-
-    Outputs:
-    pd.df_clean: the dataframe of cleaned processed reviews
     """
     print("="*50)
     print("PREPROCESSING UBER REVIEWS")
@@ -117,10 +105,6 @@ def preprocess_uber_reviews(input_path, output_path):
     print("="*50)
     print(f"\nFinal dataset: {len(df_clean):,} reviews")
     print(f"Quality filters: word_count >= 5, duplicates removed") 
-    # while this does remove a some legitimate reviews which would provide use in classification
-    # it also allows us to find a higher total amount of useful reviews, after seeing the results of 1, 2, 3, 4, 5 
-    # it showed the most amount of formative reviews without seeming excessive in data removal
-    
     print("\nRating distribution:")
     rating_dist = df_clean['rating'].value_counts().sort_index()
     for rating, count in rating_dist.items():
@@ -137,10 +121,7 @@ def preprocess_uber_reviews(input_path, output_path):
     print(f"  Short reviews: {df_clean[df_clean['word_count'] < 5]}")
     print(f"  Null values: {df_clean.isnull().sum().to_dict()}")
     print(f"  Duplicate reviews: {df_clean.duplicated(subset=['review']).sum()}")
-    # lang detection takes 5+ mins so leaving it commented for now 
-    #df_clean['detected_lang'] = df_clean['review'].apply(detect_language)
-    #print(f"  Detected languages:\n {df_clean['detected_lang'].value_counts( )}")
-    
+
     # Sample reviews from each rating
     print("\n" + "="*50)
     print("SAMPLE CLEANED REVIEWS")
@@ -151,11 +132,6 @@ def preprocess_uber_reviews(input_path, output_path):
             print(f"\n{rating} {"✭" * rating} REVIEWS:")
             for index, row in sample.iterrows():
                 print(f"  • ({row['word_count']} words) {row['review'][:100]}")
-    
-    # Note about language
-    print("Language detection not applied due to unreliability on short")
-    print("informal text. The Uber Reviews Dataset is from the Indian market, labeled as English.")
-    print(" ...Manual annotation phase will identify any non-English reviews")
     
     return df_clean
 

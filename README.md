@@ -4,9 +4,11 @@
 
 ---
 
-## Project Overview
+# README not finished
 
-RECLASS is a multi-task learning system which uses a shared BERT encoder with task-specific classification heads.
+## Overview
+
+RECLASS is a multitask learning system which uses a shared multilingual transformer encoder with task-specific heads and single-task implementations for optional comparison.
 
 | Task | Output | Classes |
 |------|--------|---------|
@@ -18,57 +20,104 @@ RECLASS is a multi-task learning system which uses a shared BERT encoder with ta
 ## Dataset
 
 - **Source**: [Uber Customer Reviews (Kaggle)](https://www.kaggle.com/datasets/khushipitroda/ola-vs-uber-play-store-reviews)
-- **Original size**: 1,069,616 reviews
-- **Cleaned size**: 495,036 reviews (after removing short/duplicate reviews)
-- **Annotation target**: 5,000 manually labelled reviews
+- **Original size**: ~1.07M Reviews
+- **After Preprocessing**: ~495K Reviews
+- **Annotation subsets**: 5,000 from the original distribution, 5,000 from a keyword boosted sample
+
+## Preprocessing Steps
+
+- Removed URLS and emails
+- Normalised text and punctuation
+- Removed duplicate reviews
+- Filtered reviews less than 5 words
+
+- Output sets
+    -   Original: matches the original distribution of the raw dataset
+    -   Boosted: oversamples bug reports and feature requests using keyword heuristics
+
+## Model
+
+- Encoder: XLM-RoBERTa (large multilingual transformer model)
+- Architecture:
+    - Shared encoder
+    - Task-specific classification heads
+- Training setups:
+    - MTL (Multitask learning)
+    - STL (Single-task learning)
+
+Class weights are applied to reduce imbalance effects.
 
 ## Repository Structure
 
-```
-6013/
-    README.md
-    .gitignore
-    data/
-        uber_reviews.csv           # Raw dataset
-        uber_reviews_cleaned.csv   # Preprocessed reviews
-        uber_reviews_sampled.csv   # Stratified sample for annotation
-        uber_reviews_tagged.csv    # Annotated reviews (in progress)
-    notebooks/
-        preprocessing_uber.ipynb   # Preprocessing analysis
-        uber_cleaned.ipynb         # Cleaned data verification
-    src/
-        preprocess.py              # Text cleaning and filtering pipeline
-        sampler.py                 # Stratified sampling strategies
-        multitag.py                # GUI annotation tool
-        train.py                   # Model training (in progress)
-        infer.py                   # Inference pipeline (in progress)
-        outputs/
-            figures/
-```
+.
+├── data
+│   └── processed
+│       ├── boosted_test.csv
+│       ├── boosted_train.csv
+│       ├── boosted_val.csv
+│       ├── original_test.csv
+│       ├── original_train.csv
+│       ├── original_val.csv
+│       └── review.csv
+├── notebooks/
+│   
+├── outputs
+│   └── figures/
+├── README.md
+├── architecture.png
+└── src
+    ├── dataset.py
+    ├── evaluate.py
+    ├── infer.py
+    ├── model.py
+    ├── multitag.py
+    ├── preprocess.py
+    ├── sampler.py
+    └── train.py
 
-## Current Progress
+## Results
 
-- Manual annotation of 5,000 reviews
-- BERT baseline implementation
-- Multi-task model architecture
-- Training and evaluation
-- Comparative analysis (MTL vs single-task)
-- Final report and presentation
+Evaluation includes Precision, Recall, Macro F1, Confusion matrices and confidence analysis.
+
+Results and summaries are found in outputs/*.json and outputs/figures/
 
 ## Installation
 
 ```
-# Clone repository
-...
 # Create conda environment
-...
+conda create -n reclass python=3.11 
+conda activate reclass
+```
+
+```
 # Install dependencies
-...requirements.txt
+conda install --file requirements.txt
 ```
 
 ## Usage
-## References
-## Licenses
+
+#### Train Model
+
+```
+python src/train.py --mode mtl --dataset original
+```
+
+#### Evaluate Model
+
+```
+python src/evaluate.py --mode mtl --dataset original --model_path <model>.pt
+```
+
+#### Run Inference
+
+```
+python src/infer.py --mode mtl --model_path <model>.pt --dataset review
+```
+
+## Notes
+
+- The same tokenizer is used across training, evaluation and inference to ensure consistency
+- Sampling and preprocessing choices are documented further in src files and dissertation
 
 ---
 

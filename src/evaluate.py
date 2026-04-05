@@ -1,4 +1,6 @@
 # evauluate.py
+# Evaluate MTL or STL models on the test split
+
 import os
 import torch
 import time
@@ -17,7 +19,6 @@ from sklearn.metrics import classification_report, confusion_matrix, f1_score
 from dataset import ReviewDataset
 from model import Model, SingleTaskModel
 
-# TODO: load checkpoint, produce tables of evaluation figures
 SEED = 4321
 torch.manual_seed(SEED)
 np.random.seed(SEED)
@@ -31,6 +32,7 @@ label_names = {
 }
 
 def parse_args():
+    """Parse command line arguments for evaluation"""
     parser = argparse.ArgumentParser(description="RECLASS Evaluation Script")
     parser.add_argument("--mode", type=str, required=True, choices=["mtl", "stl"], help="mtl or stl")
     parser.add_argument("--task", type=str, default="all", choices=["all", "bug_report", "feature_request", "aspect", "aspect_sentiment"])
@@ -47,11 +49,13 @@ def main():
     os.makedirs("outputs/figures", exist_ok=True)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-
+    # Load test dataset and model
     test = f"data/processed/{args.dataset}_test.csv"
     tokenizer = AutoTokenizer.from_pretrained("FacebookAI/xlm-roberta-base")
     test_dataset = ReviewDataset(test, tokenizer)
     test_loader = DataLoader(test_dataset, batch_size=args.batch_size)
+
+    # MTL evaluates all tasks, STL needs to know a single task to evaluate on
     if args.mode == "mtl":
         model = Model().to(device)
         active_tasks = ['bug_report', 'feature_request', 'aspect', 'aspect_sentiment']
@@ -86,6 +90,7 @@ def main():
                 logits = outputs[task]
                 preds = torch.argmax(logits, dim=1)
 
+                # Kepp max softmax as confidence estimate
                 probs = F.softmax(logits, dim=1)
                 confidence = probs.max(dim=1).values
 
@@ -93,6 +98,7 @@ def main():
                 all_preds[task].extend(preds.cpu().numpy())
                 all_confidences[task].extend(confidence.cpu().numpy())
     
+    # Detailed JSON summary along with printed results
     summary = {
         "mode": args.mode,
         "dataset": args.dataset,
@@ -137,7 +143,7 @@ def main():
         print(f"Mean confidence for correct predictions: {mean_conf_correct:.4f}")
         print(f"Incorrect Predictions confidence: {mean_conf_incorrect:.4f}")
 
-        # save summary to JSON
+        # Store main metrics and full per class report to JSON
         summary["results"][task] = {
             "macro_f1": float(report_dict["macro avg"]["f1-score"]),
             "macro_precision": float(report_dict["macro avg"]["precision"]),
@@ -150,8 +156,7 @@ def main():
             "per_class": report_dict
         }
 
-        # Confusion matrix
-
+        # Confusion matrix for each evaluated task
         cm = confusion_matrix(labels_arr, preds_arr)
         fig, ax = plt.subplots(figsize=(8, 6))
         sns.heatmap(
@@ -172,7 +177,6 @@ def main():
         test_df[f'{task}_pred'] = [label_names[task][p] for p in preds_arr] # Map to human readable
         test_df[f'{task}_confidence'] = conf_arr
 
-    # to JSON
     run_name = args.task if args.mode == "stl" else "mtl"
     json_path = f"outputs/eval_summary_{args.mode}_{run_name}_{args.dataset}.json"
     with open(json_path, "w") as f:

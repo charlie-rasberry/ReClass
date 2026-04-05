@@ -1,22 +1,17 @@
 # dataset.py
-# tokenize data using (sentencepiece) XLM-RoBERTas tokenizer
-# Takes a row from the csv, tokenizes the review and returns a tensor
+# Takes a row from the csv, tokenizes the review and returns a tensor ready for the model
 import torch
 import pandas as pd
 from torch.utils.data import Dataset
 from transformers import AutoTokenizer
 
 class ReviewDataset(Dataset):
-    """Pytorch Dataset for loading tokenized reviews
+    """
+    Dataset for tokenized reviews with labels for all 4 tasks.
 
     Dataset is for map style datasets like here, instead of using IteratableDataset (better for data streams).
-    Expects a csv and tokenizes reviews using XLM-RoBERTa, returning a dictionary with of
+    Expects a csv and tokenizes reviews using XLM-RoBERTa (SentencePiece), returning a dictionary with of
     input tensors and integer labels for all 4 tasks.
-     
-      Args:
-        path (str): Path to the csv file containing the reviews and labels.
-        tokenizer (transformers.PreTrainedTokenizer): Tokenizer to use for encoding the reviews.
-        max_length (int, optional): Maximum length for tokenized sequences. Defaults to 256. 128 would have dropped about half of minority classes
     """
 
     def __init__(self, path, tokenizer, max_length=256):
@@ -30,25 +25,14 @@ class ReviewDataset(Dataset):
     def __getitem__(self, idx):
         review = self.df.iloc[idx]['review']
 
-        # encoding['input_ids'] 1D tensor of token ids, shape [max_length]
-        # encoding['attention_mask'] 1D tensor of 1s 0s showing real tokens vs padding, shape [max_length]
-        # Both have shape [1, max_length] because of return_tensors='pt'
-        # Squeeze them to [max_length] with .squeeze(0)
+        # Tokenize with padding and truncation to max_length, returning PyTorch tensors
         encoding = self.tokenizer(review, max_length=self.max_length, padding='max_length', truncation=True, return_tensors='pt')
         
-        # Returns a dictionary with:
-        #   'input_ids': tensor of shape [max_length]
-        
-        #   'attention_mask': tensor of shape [max_length]
-
-        # MTL structure labels as tensor scalars:
-        #   'bug_report': tensor scalar (torch.tensor(label_value))
-        #   'feature_request': tensor scalar (torch.tensor(label_value))
-        #   'aspect': tensor scalar (torch.tensor(label_value))
-        #   'aspect_sentiment': tensor scalar (torch.tensor(label_value))
         return {
             'input_ids': encoding['input_ids'].squeeze(0),
             'attention_mask': encoding['attention_mask'].squeeze(0),
+
+            # Labels for all 4 tasks, converted to tensors
             'bug_report': torch.tensor(self.df.iloc[idx]['bug_report'], dtype=torch.long),
             'feature_request': torch.tensor(self.df.iloc[idx]['feature_request'], dtype=torch.long),
             'aspect': torch.tensor(self.df.iloc[idx]['aspect'], dtype=torch.long),
@@ -65,18 +49,23 @@ class InferenceDataset(Dataset):
                 return len(self.df)
         
         def __getitem__(self, idx):
-                #review = self.df.iloc[idx][self.text_column] no longer enough due to missing values as I kept all reviews 
                 review = str(self.df.iloc[idx][self.text_column])
+
                 if review == 'nan' or review.strip() == '':
                     review = ' '
+
+                # Same as training dataset but without labels, for inference on test sets
                 encoding = self.tokenizer(review, max_length=self.max_length, padding='max_length', truncation=True, return_tensors='pt')
                 return {
                         'input_ids': encoding['input_ids'].squeeze(0),
                         'attention_mask': encoding['attention_mask'].squeeze(0),
                 }    
     
-        
+
+
+
 if __name__ == "__main__":
+    # Quick test
     dataset = ReviewDataset("data/processed/original_train.csv", AutoTokenizer.from_pretrained("FacebookAI/xlm-roberta-base"))
     print(dataset.__getitem__(1))
     

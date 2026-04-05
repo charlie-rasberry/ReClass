@@ -1,5 +1,6 @@
 # train.py
-# structure adapted from Pytorch introductory tutorials https://docs.pytorch.org/tutorials/beginner/introyt/trainingyt.html
+# Training script for both MTL and STL setups 
+# Structure adapted and adjusted from standard PyTorch training loops
 import argparse
 import os
 from datetime import datetime
@@ -17,40 +18,26 @@ from transformers import get_linear_schedule_with_warmup
 from sklearn.metrics import classification_report, f1_score
 from sklearn.utils.class_weight import compute_class_weight
 
-
 from dataset import ReviewDataset
 from model import Model, SingleTaskModel
 
 
 
-
-# =======================================================================
-#         Training script for MTL and STL training configurations
-# =======================================================================
-
-# NFR5, reproducibility
+# Fixed seed for near reproducibile runs
 SEED = 4321
 torch.manual_seed(SEED)
 np.random.seed(SEED)
 random.seed(SEED)
 
 
-# ------------------- Class weights -------------------
-# Using weights inversely proportional to class frequencies to avoid majority class bias, 
-# prioritize useful bug reports / feature requests
+
 def compute_weights(df, column, device):
-    """Copmutes inverse frequency class weights for a label column
-    
-    Uses sklearns balanced mode
-    Rare classes receive higher weights to penalise so it can learn more from less
-    """
+    """Computes inverse frequency class weights for a label column"""
     classes = np.unique(df[column])
     weights = compute_class_weight(class_weight='balanced', classes=classes, y=df[column])
     return torch.tensor(weights, dtype=torch.float).to(device)
 
-# parse_args() - NFR7 and NFR9
-#   Example Usages: python src/train.py --dataset boosted
-#   python src/train.py --epochs 15 NOTE: 8 - 12 epochs has seen best results so far
+
 def parse_args():
     parser = argparse.ArgumentParser(description="RECLASS, Multitask learning for review classification.")
     parser.add_argument("--mode", type=str, default="mtl", choices=["mtl", "stl"], help="Choose between 'mtl' (multitask learning) and 'stl' (single task learning).")
@@ -67,23 +54,25 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print("Starting training...", flush=True)
     print("Using device:", device)
-    # Set cuda seeds for reproducibility
+
+    # Set cuda seeds for reproducibility on GPU
     if torch.cuda.is_available():
         print("GPU:", torch.cuda.get_device_name(0))
         torch.cuda.manual_seed_all(SEED)
         torch.cuda.manual_seed(SEED)
     print(f"Using dataset: {args.dataset.upper()}")
+
     # Force deterministic for reproducibility at a slight performance cost
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-    # load data
+    # load data into train/val splits
     train = f"data/processed/{args.dataset}_train.csv"
     val = f"data/processed/{args.dataset}_val.csv"
     os.makedirs("outputs", exist_ok=True)
     os.makedirs("runs", exist_ok=True)
 
-    # FR1, FR2, Multilingual tokenizer initilization
+    # Tokenizer initilization
     tokenizer = AutoTokenizer.from_pretrained("FacebookAI/xlm-roberta-base")
 
     train_dataset = ReviewDataset(train, tokenizer)
@@ -92,7 +81,7 @@ def main():
     training_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=True)
     validation_loader = DataLoader(val_dataset, batch_size=args.batch_size, shuffle=False)
 
-    # FR3, shared multilingual model with task-specific heads
+    # Shared model uses encoder across all tasks, STL model trains one task at a time
     if args.mode == "mtl":
         model = Model().to(device)
         active_tasks = ['bug_report', 'feature_request', 'aspect', 'aspect_sentiment']
@@ -113,7 +102,7 @@ def main():
     
     train_df = pd.read_csv(train)
     
-    # Class weights
+    # Compute per-task weights from the training split
     print("\n Computing class weights...")
     bug_weights = compute_weights(train_df, 'bug_report', device)
     feature_weights = compute_weights(train_df, 'feature_request', device)
@@ -151,7 +140,7 @@ def main():
         num_training_steps=total_steps
     )
 
-    # ------------------- Training loop -------------------
+    # Entry point for training loop, with Tensorboard logging and early stopping based on validation macro F1 score
     start_time = time.time()
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     writer = SummaryWriter(f'runs/reclass_{run_name}_{timestamp}')
@@ -175,7 +164,7 @@ def main():
             input_ids = batch["input_ids"].to(device)
             attention_mask = batch["attention_mask"].to(device)
 
-            # FR8, Multitask forward pass
+            # Multitask forward pass
             outputs = model(input_ids, attention_mask)
             
             loss = 0
@@ -199,7 +188,7 @@ def main():
         writer.add_scalar("Loss/train", avg_train_loss, epoch) 
         print(f"Average training loss: {avg_train_loss:.4f}")
 
-        # -------------------- Validation loop -------------------
+        # Validation phase
         model.eval()
         total_val_loss = 0.0
 
@@ -226,7 +215,7 @@ def main():
         avg_vloss = total_val_loss / len(validation_loader)
         writer.add_scalar("Loss/val", avg_vloss, epoch)
 
-        # FR11, Performance evaluation
+        # Performance evaluation summary
         print("\nValidation Metrics (MACRO F1):")    
         epoch_f1 = []
         for task in active_tasks:
@@ -239,7 +228,7 @@ def main():
         writer.add_scalar("F1/val_macro_avg", avg_macro_f1, epoch)
         print(f" Average Macro F1: {avg_macro_f1:.4f}")
 
-        # NFR4, Early stopping
+        # Early stopping
         if avg_macro_f1 > best_f1:
             best_f1 = avg_macro_f1
             patience_counter = 0
